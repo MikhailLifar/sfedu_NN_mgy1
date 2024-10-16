@@ -71,6 +71,8 @@ class Softmax(Layer):
         self.can_backward = False
 
     def forward(self, x, require_grad=True):
+        x = x - np.mean(x)  # TODO crutch to deal with large values, does not change the output
+        x = x * 30. / max(30., np.max(x))  # TODO one more crutch, slightly affects only the large values
         out = np.exp(x) / np.sum(np.exp(x))
         if require_grad:
             self.store_for_grad['out'] = np.copy(out)
