@@ -109,7 +109,7 @@ class TicTacToeEnv(gym.Env):
         code = self.tictactoe.move(x, y)
         # assert code >= 0, 'Incorrect action'
         if code == -1:
-            return np.copy(self.tictactoe.field.flatten()), -0.1, False, False, {}
+            return np.copy(self.tictactoe.field.flatten()), -1., True, False, {}
 
         # has the agent won?
         if code == 1:

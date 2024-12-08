@@ -10,7 +10,9 @@ class DQN:
                  nActions,
                  batch_size=256,
                  gamma=0.99,
-                 eps=0.1,
+                 eps_start=1.,
+                 eps_end=0.01,
+                 eps_decay=0.99,
                  tau=0.01):
         self.qnet = qnet
         self.target_qnet = copy.deepcopy(qnet)
@@ -20,13 +22,17 @@ class DQN:
 
         self.nActions = nActions
         self.gamma = gamma
-        self.eps = eps
+        self.eps = eps_start
+        self.eps_end = eps_end
+        self.eps_decay = eps_decay
         self.tau = tau
 
-    def act(self, obs):
-        if np.random.random() < self.eps:
+    def act(self, obs, train=True):
+        if train and (np.random.random() < self.eps):
             return np.random.choice(self.nActions)
-        return np.argmax(self.qnet(torch.Tensor(obs)).cpu().detach().numpy())
+        with torch.no_grad():
+            action = np.argmax(self.qnet(torch.Tensor(obs)).cpu().numpy())
+            return action
 
     def store(self, state, action, reward, next_state, done):
         self.buffer.store(state, action, reward, next_state, done)
@@ -64,4 +70,13 @@ class DQN:
 
         self.update_target_net()
 
+        self.eps = max(self.eps * self.eps_decay, self.eps_end)
+
         return float(loss.item())
+
+    def save(self, dirPath):
+        torch.save(self.target_qnet.state_dict(), f'{dirPath}/qnet.pt')
+
+    def load(self, dirPath):
+        self.target_qnet.load_state_dict(torch.load(f'{dirPath}/qnet.pt', weights_only=True))
+        self.qnet.load_state_dict(torch.load(f'{dirPath}/qnet.pt', weights_only=True))
