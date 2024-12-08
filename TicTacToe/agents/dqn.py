@@ -16,6 +16,7 @@ class DQN:
                  tau=0.01):
         self.qnet = qnet
         self.target_qnet = copy.deepcopy(qnet)
+        self.target_qnet.load_state_dict(self.qnet.state_dict())
         self.optimizer = optimizer
         self.buffer = buffer
         self.batch_size = batch_size
@@ -80,3 +81,39 @@ class DQN:
     def load(self, dirPath):
         self.target_qnet.load_state_dict(torch.load(f'{dirPath}/qnet.pt', weights_only=True))
         self.qnet.load_state_dict(torch.load(f'{dirPath}/qnet.pt', weights_only=True))
+
+
+class DDQN(DQN):
+
+    def train(self):
+        if self.buffer.get_size() < self.batch_size:
+            return
+
+        states, actions, rewards, next_states, dones = self.buffer.sample(self.batch_size)
+        states = torch.Tensor(states)
+        actions = torch.Tensor(actions).long()
+        rewards = torch.Tensor(rewards)
+        next_states = torch.Tensor(next_states)
+        dones = torch.Tensor(dones)
+
+        with torch.no_grad():
+            not_done = (1. - dones.float())
+            _, next_q_idx = self.qnet(next_states).max(dim=1)
+            next_q_idx = next_q_idx.long().unsqueeze(1)
+            next_q = self.target_qnet(next_states).gather(1, next_q_idx)
+            next_q = next_q.unsqueeze(1)
+            target = rewards + not_done * self.gamma * next_q
+
+        self.qnet.train()
+        self.optimizer.zero_grad()
+        current = self.qnet(states).gather(1, actions)
+        loss = nnf.mse_loss(current, target)
+        loss.backward()
+        # torch.nn.utils.clip_grad_value_(self.qnet.parameters(), 100)
+        self.optimizer.step()
+
+        self.update_target_net()
+
+        self.eps = max(self.eps * self.eps_decay, self.eps_end)
+
+        return float(loss.item())

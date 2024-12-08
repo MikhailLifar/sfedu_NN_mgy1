@@ -1,14 +1,11 @@
 import os
 import sys
 
-import numpy as np
-
 from util import *
 from ReplayBuffer import ReplayBuffer
-from dqn_agent import *
+from agents import dqn
 from TitTacToe import *
 
-import torch
 import torch.nn as nn
 import torch.optim as optim
 
@@ -50,18 +47,32 @@ def run_episode(env, agent, train=True):
 def main():
     tictactoe = TicTacToe(3, 3)
     renderer = CLIRenderer(tictactoe)
-
     fieldSize = tictactoe.size * tictactoe.size
     env = TicTacToeEnv(tictactoe, RandomOpponent(fieldSize), renderer)
 
+    width = 32
+    d = 3
+    body = []
+    for _ in range(d - 1):
+        body.extend([
+            nn.Linear(width, width),
+            nn.ReLU(),
+        ])
     qnet = nn.Sequential(
-        nn.Linear(fieldSize, 12),
-        nn.Linear(12, 12),
-        nn.Linear(12, fieldSize),
+        nn.Linear(fieldSize, width),
+        nn.ReLU(),
+        *body,
+        nn.Linear(width, fieldSize),
     )
     optimizer = optim.Adam(qnet.parameters(), lr=3.e-4, weight_decay=1.e-4)
-    buffer = ReplayBuffer(fieldSize, 1)
-    agent = DQN(qnet, optimizer, buffer, fieldSize)
+    buffer = ReplayBuffer(fieldSize, 1, capacity=10_000)
+    agent = dqn.DQN(qnet, optimizer, buffer, fieldSize,
+                    eps_end=0.01, eps_decay=0.999)
+    # agent = dqn.DDQN(qnet, optimizer, buffer, fieldSize,
+    #                  eps_end=0.1)
+    resDir = 'results/basic_dqn'
+    # resDir = 'results/basic_ddqn'
+    os.makedirs(resDir, exist_ok=True)
 
     n_episodes = 100_000
     # n_episodes = 200
@@ -89,21 +100,21 @@ def main():
             if mean_eval_rew > max_rew + 1.e-5:
                 max_rew = mean_eval_rew
                 print(f'New highest eval reward achieved!')
-                agent.save('results/basic_dqn')
+                agent.save(resDir)
 
             rews_smoothed = moving_average(rews, 20)
             basic_plot(np.arange(len(losses)) + 1, np.array(losses),
                        xlabel='Episode', ylabel='loss',
-                       plotFilePath='results/basic_dqn/losses.png',
+                       plotFilePath=f'{resDir}/losses.png',
                        save=True,)
             basic_plot(np.arange(len(losses)) + 1, np.log(np.array(losses)),
                        xlabel='Episode', ylabel='log(loss)',
-                       plotFilePath='results/basic_dqn/log_losses.png',
+                       plotFilePath=f'{resDir}/log_losses.png',
                        save=True, )
             basic_plot(np.arange(len(rews_smoothed)) + 1, rews_smoothed,
                        xlabel='Episode', ylabel='reward, smoothed',
                        ylim=[-1., 1.],
-                       plotFilePath='results/basic_dqn/reward.png',
+                       plotFilePath=f'{resDir}/reward.png',
                        save=True, )
 
 
