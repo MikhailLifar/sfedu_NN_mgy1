@@ -46,12 +46,13 @@ def run_episode(env, agent, train=True):
 
 def main():
     tictactoe = TicTacToe(3, 3)
+    # tictactoe = TicTacToe(13, 5)
     renderer = CLIRenderer(tictactoe)
     fieldSize = tictactoe.size * tictactoe.size
     env = TicTacToeEnv(tictactoe, RandomOpponent(fieldSize), renderer)
 
     width = 32
-    d = 3
+    d = 5
     body = []
     for _ in range(d - 1):
         body.extend([
@@ -66,12 +67,15 @@ def main():
     )
     optimizer = optim.Adam(qnet.parameters(), lr=3.e-4, weight_decay=1.e-4)
     buffer = ReplayBuffer(fieldSize, 1, capacity=10_000)
-    agent = dqn.DQN(qnet, optimizer, buffer, fieldSize,
-                    eps_end=0.01, eps_decay=0.999)
-    # agent = dqn.DDQN(qnet, optimizer, buffer, fieldSize,
-    #                  eps_end=0.1)
-    resDir = 'results/basic_dqn'
+    # agent = dqn.DQN(qnet, optimizer, buffer, fieldSize,
+    #                 eps_end=0.01, eps_decay=0.999)
+    agent = dqn.DDQN(qnet, optimizer, buffer, fieldSize,
+                     eps_end=0.01, eps_decay=0.999)
+    # resDir = 'results/basic_dqn'
+    # resDir = 'results/dqn_3x3'
+    # resDir = 'results/dqn_13x5'
     # resDir = 'results/basic_ddqn'
+    resDir = 'results/ddqn_3x3'
     os.makedirs(resDir, exist_ok=True)
 
     n_episodes = 100_000

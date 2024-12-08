@@ -16,7 +16,6 @@ class DQN:
                  tau=0.01):
         self.qnet = qnet
         self.target_qnet = copy.deepcopy(qnet)
-        self.target_qnet.load_state_dict(self.qnet.state_dict())
         self.optimizer = optimizer
         self.buffer = buffer
         self.batch_size = batch_size
@@ -65,7 +64,7 @@ class DQN:
         self.qnet.train()
         self.optimizer.zero_grad()
         current = self.qnet(states).gather(1, actions)
-        loss = nnf.mse_loss(current, target)
+        loss = nnf.huber_loss(current, target)
         loss.backward()
         self.optimizer.step()
 
@@ -107,7 +106,7 @@ class DDQN(DQN):
         self.qnet.train()
         self.optimizer.zero_grad()
         current = self.qnet(states).gather(1, actions)
-        loss = nnf.mse_loss(current, target)
+        loss = nnf.huber_loss(current, target)
         loss.backward()
         # torch.nn.utils.clip_grad_value_(self.qnet.parameters(), 100)
         self.optimizer.step()
