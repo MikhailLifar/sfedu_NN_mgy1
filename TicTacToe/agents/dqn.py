@@ -27,11 +27,22 @@ class DQN:
         self.eps_decay = eps_decay
         self.tau = tau
 
-    def act(self, obs, train=True):
-        if train and (np.random.random() < self.eps):
+        self.train_mode = True
+
+    def set_train(self):
+        self.train_mode = True
+
+    def set_eval(self):
+        self.train_mode = False
+
+    def act(self, obs, info=None):
+        if self.train_mode and (np.random.random() < self.eps):
             return np.random.choice(self.nActions)
         with torch.no_grad():
-            action = np.argmax(self.qnet(torch.Tensor(obs)).cpu().numpy())
+            qs = self.qnet(torch.Tensor(obs)).cpu().numpy()
+            if info is not None and 'action_mask' in info:
+                qs[~info['action_mask']] = -np.inf
+            action = np.argmax(qs)
             return action
 
     def store(self, state, action, reward, next_state, done):
@@ -75,11 +86,12 @@ class DQN:
         return float(loss.item())
 
     def save(self, dirPath):
-        torch.save(self.target_qnet.state_dict(), f'{dirPath}/qnet.pt')
+        torch.save(self.qnet.state_dict(), f'{dirPath}/qnet.pt')
+        torch.save(self.target_qnet.state_dict(), f'{dirPath}/target_qnet.pt')
 
     def load(self, dirPath):
-        self.target_qnet.load_state_dict(torch.load(f'{dirPath}/qnet.pt', weights_only=True))
         self.qnet.load_state_dict(torch.load(f'{dirPath}/qnet.pt', weights_only=True))
+        self.target_qnet.load_state_dict(torch.load(f'{dirPath}/target_qnet.pt', weights_only=True))
 
 
 class DDQN(DQN):

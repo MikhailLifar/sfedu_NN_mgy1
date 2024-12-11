@@ -8,12 +8,12 @@ class TicTacToe:
         # the field is numpy 2d-array
         # the empty cell is 0
         # the x is 1
-        # the O is 2
+        # the O is -1
         self.size = size
         self.win_size = win_size
-        self.field = np.zeros((self.size, self.size), dtype=np.uint8)
+        self.field = np.zeros((self.size, self.size))
         self.turn = 1
-        self.opponent = 2
+        self.opponent = -1
 
     def check_win(self, x, y):
         # the trick is to check only lines involving the last move
@@ -79,7 +79,7 @@ class TicTacToe:
     def reset(self):
         self.field[:, :] = 0
         self.turn = 1
-        self.opponent = 2
+        self.opponent = -1
 
 
 class CLIRenderer:
@@ -89,19 +89,24 @@ class CLIRenderer:
     def render(self):
         field = self.ticTacToe.field
         size = field.shape[0]
-        str_repr = {0: ' ', 1: 'X', 2: '0'}
+        str_repr = {0: ' ', 1: 'X', -1: '0'}
         for i in range(size):
             print('-' * (2 * size + 1))
-            print('|'.join(str_repr[el] for el in field[i]))
+            print('|' + '|'.join(str_repr[el] for el in field[i]) + '|')
         print('-' * (2 * size + 1))
 
 
 class TicTacToeEnv(gym.Env):
-    def __init__(self, tictactoe, opponent, renderer):
+    def __init__(self, tictactoe, opponent, renderer,
+                 agent_turn=1, agent_turn_fixed=False):
         self.tictactoe = tictactoe
         self.size = self.tictactoe.size
         self.opponent = opponent
         self.renderer = renderer
+        self.agent_turn = agent_turn
+        if not agent_turn_fixed:
+            self.agent_turn *= -1  # since reset will be called
+        self.agent_turn_fixed = agent_turn_fixed
 
     def step(self, action):
         # move
@@ -109,32 +114,50 @@ class TicTacToeEnv(gym.Env):
         code = self.tictactoe.move(x, y)
         # assert code >= 0, 'Incorrect action'
         if code == -1:
-            return np.copy(self.tictactoe.field.flatten()), -1., True, False, {}
+            return self.agent_turn * np.copy(self.tictactoe.field.flatten()), -1., True, False, {}
 
         # has the agent won?
         if code == 1:
-            return np.copy(self.tictactoe.field.flatten()), 1., True, False, {}
-        obs = np.copy(self.tictactoe.field.flatten())
+            return self.agent_turn * np.copy(self.tictactoe.field.flatten()), 1., True, False, {}
+        obs = self.agent_turn * np.copy(self.tictactoe.field.flatten())
         action_mask = obs == 0
         is_draw = not np.any(action_mask)
 
         if not is_draw:
-            opponent_action = self.opponent.act(obs, {'action_mask': action_mask})
+            opponent_action = self.opponent.act(-obs, {'action_mask': action_mask})
             x, y = opponent_action % self.size, opponent_action // self.size
             code = self.tictactoe.move(x, y)
             assert code >= 0
 
             # has the opponent won?
             if code == 1:
-                return np.copy(self.tictactoe.field.flatten()), -1., True, False, {}
-            obs = np.copy(self.tictactoe.field.flatten())
+                return self.agent_turn * np.copy(self.tictactoe.field.flatten()), -1., True, False, {}
+            obs = self.agent_turn * np.copy(self.tictactoe.field.flatten())
             is_draw = not np.any(action_mask)
 
         return obs, 0., is_draw, False, {}
 
+    def move(self, action):
+        x, y = action % self.size, action // self.size
+        code = self.tictactoe.move(x, y)
+        obs = self.tictactoe.turn * np.copy(self.tictactoe.field.flatten())
+        action_mask = obs == 0
+        return obs, code, {'action_mask': action_mask}
+
     def reset(self, seed=None, options=None):
         self.tictactoe.reset()
-        obs = np.copy(self.tictactoe.field.flatten())
+
+        if not self.agent_turn_fixed:
+            self.agent_turn *= -1
+        if self.agent_turn == -1:
+            obs = self.agent_turn * np.copy(self.tictactoe.field.flatten())
+            action_mask = obs == 0
+            opponent_action = self.opponent.act(-obs, {'action_mask': action_mask})
+            x, y = opponent_action % self.size, opponent_action // self.size
+            code = self.tictactoe.move(x, y)
+            assert code == 0
+
+        obs = self.agent_turn * np.copy(self.tictactoe.field.flatten())
         return obs, {}
 
     def render(self):
