@@ -109,6 +109,8 @@ class TicTacToeEnv(gym.Env):
         self.agent_turn_fixed = agent_turn_fixed
 
     def step(self, action):
+        assert self.agent_turn == self.tictactoe.turn
+
         # move
         x, y = action % self.size, action // self.size
         code = self.tictactoe.move(x, y)

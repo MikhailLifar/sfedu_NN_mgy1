@@ -53,7 +53,7 @@ def train():
     # tictactoe = TicTacToe(13, 5)
     renderer = CLIRenderer(tictactoe)
     fieldSize = tictactoe.size * tictactoe.size
-    env = TicTacToeEnv(tictactoe, RandomOpponent(fieldSize), renderer)
+    env = TicTacToeEnv(tictactoe, RandomPlayer(fieldSize), renderer)
 
     width = 64
     d = 5
@@ -69,7 +69,7 @@ def train():
         *body,
         nn.Linear(width, fieldSize),
     )
-    optimizer = optim.Adam(qnet.parameters(), lr=3.e-4, weight_decay=1.e-4)
+    optimizer = optim.Adam(qnet.parameters(), lr=1.e-3, weight_decay=1.e-4)
     buffer = ReplayBuffer(fieldSize, 1, capacity=30_000)
     agent = dqn.DQN(qnet, optimizer, buffer, fieldSize,
                     eps_end=0.01, eps_decay=0.999)
@@ -183,7 +183,7 @@ def main():
     # model benchmarking
     tictactoe = TicTacToe(3, 3)
     fieldSize = tictactoe.size * tictactoe.size
-    env = TicTacToeEnv(tictactoe, RandomOpponent(fieldSize), None,
+    env = TicTacToeEnv(tictactoe, RandomPlayer(fieldSize), None,
                        agent_turn=1, agent_turn_fixed=True)
 
     agentDir = 'results/dqn_3x3'
@@ -206,10 +206,11 @@ def main():
     optimizer = optim.Adam(qnet.parameters(), lr=3.e-4, weight_decay=1.e-4)
     buffer = ReplayBuffer(fieldSize, 1, capacity=30_000)
     agent = dqn.DQN(qnet, optimizer, buffer, fieldSize,
-                    eps_end=0.01, eps_decay=0.999)
+                    eps_end=0.1, eps_decay=0.999, tau=1.e-2)
+    agent.set_eval()
 
     player1 = ('DQN', agent)
-    player2 = ('Random', RandomOpponent(fieldSize))
+    player2 = ('Random', RandomPlayer(fieldSize))
 
     results = benchmark(player1, player2, env)
     print(results)

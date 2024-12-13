@@ -1,7 +1,7 @@
 import numpy as np
 
 
-class RandomOpponent:
+class RandomPlayer:
     def __init__(self, nActions):
         self.nActions = nActions
 
@@ -10,6 +10,20 @@ class RandomOpponent:
             return np.random.choice(np.arange(self.nActions)[info['action_mask']])
         else:
             return np.random.choice(np.arange(self.nActions))
+
+
+class UnconditionalPlayer:
+    def __init__(self, program):
+        self.program = program
+        self.idx = 0
+
+    def act(self, obs, info=None):
+        action = self.program[self.idx]
+        self.idx += 1
+        return action
+
+    def reset(self):
+        self.idx = 0
 
 
 def moving_average(arr, n: int, mode='valid'):
