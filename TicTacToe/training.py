@@ -1,3 +1,4 @@
+import copy
 import os
 import sys
 from itertools import cycle
@@ -15,6 +16,8 @@ import torch.optim as optim
 
 sys.path.append(os.path.expanduser('~/SupervisedML/repos'))
 from supervised_ml.plot_util import *
+
+setPlotDefaults()
 
 
 def run_episode(env, agent, train_mode=True):
@@ -53,10 +56,11 @@ def train():
     # tictactoe = TicTacToe(13, 5)
     renderer = CLIRenderer(tictactoe)
     fieldSize = tictactoe.size * tictactoe.size
-    env = TicTacToeEnv(tictactoe, RandomPlayer(fieldSize), renderer)
+    env = TicTacToeEnv(tictactoe, [RandomPlayer(fieldSize), ], renderer)
+    eval_env = copy.deepcopy(env)
 
-    width = 64
-    d = 5
+    width = 32
+    d = 1
     body = []
     for _ in range(d - 1):
         body.extend([
@@ -103,11 +107,17 @@ def train():
             agent.set_eval()
             eval_rews = []
             for _ in range(eval_episodes):
-                _, eval_rew = run_episode(env, agent, train_mode=False)
+                _, eval_rew = run_episode(eval_env, agent, train_mode=False)
                 eval_rews.append(eval_rew)
             mean_eval_rew = np.mean(eval_rews)
             print(f'Mean evaluation reward ({eval_episodes} episodes): {mean_eval_rew:.3f}')
             if mean_eval_rew > max_rew + 1.e-5:
+                # if (mean_eval_rew > 0.7) and (mean_eval_rew - max_rew > 0.1):
+                #     print('New opponent added!')
+                #     new_opponent = copy.deepcopy(agent)
+                #     new_opponent.eps = 0.1
+                #     new_opponent.eps_end = 0.1
+                #     env.add_opponent(new_opponent)
                 max_rew = mean_eval_rew
                 print(f'New highest eval reward achieved!')
                 agent.save(resDir)
@@ -179,16 +189,34 @@ def benchmark(player1, player2, env, n_games=1000):
     return counter
 
 
+# def check_q_func(qnet):
+#     fieldSize = 3
+#     tictactoe = TicTacToe(fieldSize, 3)
+#     env = TicTacToeEnv(tictactoe,
+#                        opponents=[RandomPlayer(fieldSize * fieldSize)],
+#                        renderer=None)
+#
+#     def get_obs():
+#         return env.agent_turn * env.tictactoe.field.flatten()
+#
+#     def get_pred(obs):
+#         return qnet(torch.Tensor(obs)).cpu().detach().numpy()
+#
+#     obs0 = get_obs()
+#     q0 = get_pred(obs0).reshape(fieldSize, fieldSize)
+#     basic_map()
+
+
 def main():
     # model benchmarking
     tictactoe = TicTacToe(3, 3)
     fieldSize = tictactoe.size * tictactoe.size
-    env = TicTacToeEnv(tictactoe, RandomPlayer(fieldSize), None,
+    env = TicTacToeEnv(tictactoe, [RandomPlayer(fieldSize), ], None,
                        agent_turn=1, agent_turn_fixed=True)
 
     agentDir = 'results/dqn_3x3'
-    width = 64
-    d = 5
+    width = 32
+    d = 1
     body = []
     for _ in range(d - 1):
         body.extend([
@@ -218,6 +246,31 @@ def main():
     basic_barplot(results, plotFilePath=f'{agentDir}/benchmark.png')
 
 
+def replot():
+    agentDir = 'results/dqn_3x3_32x3_45k'
+    plotData = readParams(f'{agentDir}/benchmark_data')[1]['0']
+    print(plotData)
+
+    x = ['wins', 'draws', 'losses']
+    y = [plotData['DQN for "X"'],
+         1000 - plotData['DQN for "X"'] - plotData['Random for "0"'],
+         plotData['Random for "0"']]
+    basic_bar(x, y, color=['g', 'b', 'r'], annot=dict(fontsize=22),
+              ylim=[None, 1100],
+              title='Trained agent benchmark, agent playing "X"',
+              plotFilePath='results/final_results_X.png')
+
+    x = ['wins', 'draws', 'losses']
+    y = [plotData['DQN for "0"'],
+         1000 - plotData['DQN for "0"'] - plotData['Random for "X"'],
+         plotData['Random for "X"']]
+    basic_bar(x, y, color=['g', 'b', 'r'], annot=dict(fontsize=22),
+              ylim=[None, 1100],
+              title='Trained agent benchmark, agent playing "0"',
+              plotFilePath='results/final_results_0.png')
+
+
 if __name__ == '__main__':
     # train()
-    main()
+    # main()
+    replot()

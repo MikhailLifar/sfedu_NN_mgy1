@@ -1,3 +1,5 @@
+from itertools import cycle
+
 import numpy as np
 import gymnasium as gym
 from gymnasium.core import RenderFrame
@@ -97,11 +99,15 @@ class CLIRenderer:
 
 
 class TicTacToeEnv(gym.Env):
-    def __init__(self, tictactoe, opponent, renderer,
+    def __init__(self, tictactoe, opponents: list, renderer,
                  agent_turn=1, agent_turn_fixed=False):
         self.tictactoe = tictactoe
         self.size = self.tictactoe.size
-        self.opponent = opponent
+
+        self.opponents_li = opponents
+        self.opponents = cycle(opponents)
+        self.opponent = None
+
         self.renderer = renderer
         self.agent_turn = agent_turn
         if not agent_turn_fixed:
@@ -146,6 +152,10 @@ class TicTacToeEnv(gym.Env):
         action_mask = obs == 0
         return obs, code, {'action_mask': action_mask}
 
+    def add_opponent(self, opponent):
+        self.opponents_li.append(opponent)
+        self.opponents = cycle(self.opponents_li)
+
     def reset(self, seed=None, options=None):
         self.tictactoe.reset()
 
@@ -158,6 +168,8 @@ class TicTacToeEnv(gym.Env):
             x, y = opponent_action % self.size, opponent_action // self.size
             code = self.tictactoe.move(x, y)
             assert code == 0
+
+        self.opponent = next(self.opponents)
 
         obs = self.agent_turn * np.copy(self.tictactoe.field.flatten())
         return obs, {}

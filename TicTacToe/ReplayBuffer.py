@@ -24,13 +24,18 @@ class ReplayBuffer:
         self.next_states[p] = next_state
         self.dones[p] = done
 
-        if not self.full:
-            self.pointer += 1
-            if self.pointer == self.capacity:
-                self.full = True
-                self.pointer = 0
-        else:
-            self.pointer = np.random.choice(self.capacity)
+        # if not self.full:
+        #     self.pointer += 1
+        #     if self.pointer == self.capacity:
+        #         self.full = True
+        #         self.pointer = 0
+        # else:
+        #     self.pointer = np.random.choice(self.capacity)
+
+        self.pointer += 1
+        if self.pointer == self.capacity:
+            self.full = True
+            self.pointer = 0
 
     def get_size(self):
         if self.full:
